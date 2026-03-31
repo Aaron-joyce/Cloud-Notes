@@ -95,3 +95,36 @@ If connectivity fails, follow this hierarchy:
     * Look for `REJECT` status. If you see `REJECT`, the issue is likely a **Security Group** or **NACL**.
 3.  **Check TGW Routes:**
     * Verify in the TGW Route Table console that the routes are actually listed under the "Routes" tab for each table. If a route is missing, check your **Propagations**.
+
+
+To set up the routing for a siloed multi-VPC environment, you must configure two distinct layers: the Transit Gateway (TGW) Route Tables (the network brain) and the VPC Subnet Route Tables (the local maps).
+1. Transit Gateway (TGW) Routing Logic
+This is where the "silo" is enforced. You will create two separate TGW Route Tables.
+Table A: Spoke-Route-Table (For VPC-A and VPC-B)
+ * Associations: Add both VPC-A Attachment and VPC-B Attachment.
+   * Effect: Traffic leaving VPC-A or VPC-B enters this table.
+ * Propagations: Add ONLY the VPC-Shared Attachment.
+   * Effect: This table now contains a route to 10.10.0.0/16 (Shared), but no route between 10.1.0.0/16 (A) and 10.2.0.0/16 (B). Traffic between A and B will be dropped.
+Table B: Shared-Services-Route-Table (For VPC-Shared)
+ * Associations: Add the VPC-Shared Attachment.
+   * Effect: Traffic leaving the Shared VPC enters this table.
+ * Propagations: Add VPC-A, VPC-B, and VPC-Shared Attachments.
+   * Effect: This table learns the routes to all spokes, allowing the Shared VPC to send "Return Traffic" back to whichever spoke initiated a request.
+2. VPC Subnet Routing (Local)
+The TGW configuration allows traffic to pass through the hub, but you must still tell the VPC subnets to send traffic to the hub.
+In VPC-A & VPC-B (The Spokes):
+Go to the Route Table associated with your EC2 subnets and add:
+ * Destination: 10.10.0.0/16 (The Shared VPC range)
+ * Target: Transit Gateway -> Select your tgw-xxxx ID.
+In VPC-Shared (The Hub):
+Go to the Route Table associated with your Shared Service subnets and add:
+ * Destination: 10.1.0.0/16 (VPC-A) -> Target: Transit Gateway
+ * Destination: 10.2.0.0/16 (VPC-B) -> Target: Transit Gateway
+3. Connection Summary Table
+| From | To | TGW Route Table Action | Result |
+|---|---|---|---|
+| VPC-A | Shared | Found in Spoke-RT via Propagation | Success |
+| VPC-B | Shared | Found in Spoke-RT via Propagation | Success |
+| VPC-A | VPC-B | Not Found (Not Propagated) | Dropped (Siloed) |
+| Shared | A or B | Found in Shared-RT via Propagation | Success (Return Traffic) |
+Note on Security Groups: Even with routing correct, ensure your destination instance's Security Group allows the Source CIDR (e.g., Shared SG must allow 10.1.0.0/16). You cannot use Security Group IDs as sources across a Transit Gateway.
