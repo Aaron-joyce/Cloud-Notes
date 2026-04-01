@@ -1,0 +1,40 @@
+IndiaSkills Jam Troubleshooting Guide
+1. Networking & Connectivity
+Hub and Spoke / Transit Gateway (TGW)
+ * Step 1: Check Route Tables. Ensure Spoke VPC routes 0.0.0.0/0 to the TGW ID. Ensure the Hub VPC has routes for the Spoke CIDRs pointing back to the TGW.
+ * Step 2: TGW Propagations. In the VPC Console, verify the TGW Route Table has "Associations" and "Propagations" for all participating VPCs.
+ * Step 3: NACLs. If Security Groups are open but traffic fails, check Network ACLs. They are stateless; you must allow Inbound AND Outbound traffic on the necessary ports + Ephemeral ports (1024-65535).
+VPC Endpoints (Interface vs. Gateway)
+ * Step 1: Gateway Endpoints (S3/DynamoDB). Check the Route Table. AWS must automatically add a route entry where the Target is vpce-xxxxxx.
+ * Step 2: Interface Endpoints (Most other services). Ensure "Private DNS" is enabled. If disabled, you must use the specific DNS name provided by the endpoint.
+ * Step 3: Security Groups. The Interface Endpoint has its own Security Group. It must allow Inbound traffic from the resources (e.g., EC2) trying to reach it.
+2. Serverless (Lambda & API Gateway)
+5xx Errors / Authorizer Failures
+ * Step 1: Payload Format. If using a Lambda Authorizer, the code must return a JSON policy with an Effect (Allow/Deny) and a Resource. Search for "Lambda Authorizer response format."
+ * Step 2: Resource Policy. Go to the Lambda console -> Permissions -> Resource-based policy. Ensure apigateway.amazonaws.com has lambda:InvokeFunction permission.
+ * Step 3: Integration Request. Check if the API Gateway is passing the header the Lambda expects (e.g., Authorization header).
+Chained Lambdas (A -> B)
+ * Step 1: Execution Role. Lambda A's role must have lambda:InvokeFunction for Lambda B's ARN.
+ * Step 2: Destination/Triggers. If it's asynchronous, check "Destinations." If synchronous, ensure the code in Lambda A is using the correct InvocationType (RequestResponse).
+3. Compute & Orchestration (EKS / ECS)
+"Where are my Nodes?" (EKS Auth)
+ * Step 1: Access Entries. In EKS Console -> Access, ensure your IAM Role is added as an "Access Entry" with AmazonEKSClusterAdminPolicy.
+ * Step 2: VPC CNI. If nodes are "NotReady," check if the subnets have enough free IP addresses. EKS nodes consume many IPs.
+ * Step 3: YAML Validation. If recreating from YAML, ensure the apiVersion matches the cluster version. Search "EKS [Version] manifest example."
+4. Security & Governance (IAM / SSM / KMS)
+"Access Denied" (Hidden Blocks)
+ * Step 1: KMS Decryption. If S3 or RDS is encrypted, your IAM role needs kms:Decrypt and kms:GenerateDataKey.
+ * Step 2: Service Control Policies (SCPs). If you are in an "Organization" Jam, check if an SCP is overriding your Admin permissions. You can't fix these; you must work within the allowed services.
+ * Step 3: Boundary Policies. Check if your IAM user has a "Permissions Boundary" attached, which limits your maximum possible permissions.
+SSM Managed Instances
+ * Step 1: IAM Instance Profile. The EC2 must have an IAM role with AmazonSSMManagedInstanceCore.
+ * Step 2: Metadata Service (IMDS). If the role is correct but SSM fails, check if IMDSv2 is "Required" but the SSM agent is an old version.
+ * Step 3: Outbound Reach. The instance needs to reach the SSM public endpoints (via NAT Gateway or VPC Interface Endpoints).
+5. Storage & DBs
+RDS Connectivity
+ * Step 1: Security Group. Inbound rule must allow the App Security Group ID (not just IP) on the DB port.
+ * Step 2: Public Accessibility. Ensure the RDS attribute PubliclyAccessible matches your architecture (usually "No" for secure tasks).
+ * Step 3: Subnet Group. Verify the RDS is in a "DB Subnet Group" that spans at least two Availability Zones.
+Pro-Search Tip:
+If you are searching the docs for a policy, use the keyword "IAM Policy Examples" + [Service Name]. AWS has pre-written JSON blocks for almost every scenario (e.g., "IAM Policy Examples for Secrets Manager").
+Good luck tomorrow! Keep that whiteboard logic in mind—it's your best tool when the console is restricted.
