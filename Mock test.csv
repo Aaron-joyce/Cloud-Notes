@@ -1,0 +1,59 @@
+Sub Criterion ID,Sub Criterion Name or Description,Aspect Type (M/J),Aspect Description,Judg Score,Extra Description / Judgement Scale,Requirement (Measurement Only),WSOS Section,Max Mark,Scored Mark
+A,Cost Optimization,,,,,,6,,
+,,M,DynamoDB table titanflow-repo-table billing mode is PAY_PER_REQUEST,,aws dynamodb describe-table --table-name titanflow-repo-table ‚Üí BillingModeSummary.BillingMode = PAY_PER_REQUEST,Yes/No,6,1,1
+,,M,ECS task definition specifies exactly 256 CPU units and 512 MiB memory,,aws ecs describe-task-definition ‚Üí cpu=256 memory=512,Yes/No,6,1,1
+,,M,API Gateway prod stage cache cluster size is 0.5 GB,,aws apigateway get-stage --rest-api-id <id> --stage-name prod ‚Üí cacheClusterSize = 0.5,Yes/No,6,1,1
+,,M,S3 lifecycle rule on titanflow-<state>-logs transitions objects to STANDARD_IA at 30 days and expires at 90 days,,aws s3api get-bucket-lifecycle-configuration ‚Üí rule with transition Days=30 StorageClass=STANDARD_IA and expiration Days=90,Yes/No,6,1,0
+,,M,AWS Backup plan rule retention is exactly 7 days,,aws backup get-backup-plan ‚Üí rules[0].lifecycle.deleteAfterDays = 7,Yes/No,6,0,0
+,,M,No additional EC2 instances exist beyond the pre-provisioned engine instance,,aws ec2 describe-instances ‚Üí runningCount = 1 (engine only; ECS Fargate tasks are not EC2 instances),Yes/No,6,1,1
+B,Operational Excellence,,,,,,11,,
+,,M,Container Insights is enabled on ECS cluster titanflow-<state>-cluster,,aws ecs describe-clusters --clusters titanflow-<state>-cluster ‚Üí settings[name=containerInsights].value = enabled,Yes/No,7,1,0
+,,M,ALB access logs are enabled and target S3 bucket titanflow-<state>-logs with prefix alb/,,aws elbv2 describe-load-balancer-attributes ‚Üí access_logs.s3.enabled=true and access_logs.s3.bucket=titanflow-<state>-logs and access_logs.s3.prefix=alb,Yes/No,7,1,1
+,,M,VPC Flow Logs are enabled on the default VPC and deliver to CloudWatch Logs group titanflow-<state>-flowlogs,,aws ec2 describe-flow-logs ‚Üí logDestinationType=cloud-watch-logs and logGroupName=titanflow-<state>-flowlogs,Yes/No,7,1,1
+,,M,CloudWatch Dashboard named titanflow-<state>-dashboard exists with at least 3 widgets covering ALB ECS DDB and SQS,,aws cloudwatch get-dashboard ‚Üí dashboardBody widget count >= 3 and metrics span ALB ECS DDB SQS,Yes/No,7,1,1
+,,M,All 4 CloudWatch alarms (ELB 5xx ECS CPU DDB throttle ALB healthy host) exist with correct metric names and namespaces,,aws cloudwatch describe-alarms ‚Üí 4 alarms with metricName/namespace matching specification,Yes/No,7,1,0
+,,M,All 4 CloudWatch alarms have at least one alarm action pointing to SNS topic titanflow-<state>-alerts,,aws cloudwatch describe-alarms ‚Üí each alarm alarmActions contains arn:aws:sns:us-east-1:<account>:titanflow-<state>-alerts,Yes/No,7,1,0
+,,M,SNS topic titanflow-<state>-alerts has at least one confirmed subscription,,aws sns list-subscriptions-by-topic ‚Üí at least 1 entry with SubscriptionStatus = SubscriptionConfirmed,Yes/No,7,1,1
+,,M,X-Ray active tracing is enabled on the API Gateway prod stage,,aws apigateway get-stage --stage-name prod ‚Üí tracingEnabled = true,Yes/No,7,1,1
+,,M,X-Ray group named titanflow-slow exists with filter expression: responsetime > 1,,"aws xray get-groups ‚Üí group filterExpression = ""responsetime > 1"" and groupName = titanflow-slow",Yes/No,7,1,0
+,,M,CloudWatch Logs metric filter on /ecs/catalog-service produces metric RateLimitHits in namespace TitanFlow/RateLimit,,aws logs describe-metric-filters --log-group-name /ecs/catalog-service ‚Üí filter with metricTransformations[0].metricName=RateLimitHits metricNamespace=TitanFlow/RateLimit,Yes/No,7,1,0
+,,J,CloudWatch Dashboard widget coverage and metric relevance,3,0=dashboard absent or fewer than 3 widgets; 1=3+ widgets but missing one of ALB/ECS/DDB/SQS groups; 2=all 4 groups present with at least one metric each; 3=all 4 groups present with multiple metrics per group (p50+p99 for ALB; latency+counts for ECS; tasks+throttle for DDB; queue depth+DLQ depth for SQS),,7,2,1
+C,Security,,,,,,7,,
+,,M,WAF WebACL named titanflow-<state>-waf exists with scope REGIONAL,,aws wafv2 list-web-acls --scope REGIONAL ‚Üí Name=titanflow-<state>-waf present,Yes/No,4,1,0
+,,M,WAF WebACL contains a rate-based rule with limit 1000 requests per 5-minute window aggregated per IP,,aws wafv2 get-web-acl ‚Üí rule with Statement.RateBasedStatement.Limit=1000 AggregateKeyType=IP,Yes/No,4,1,0
+,,M,WAF WebACL contains AWSManagedRulesCommonRuleSet as a managed rule group,,aws wafv2 get-web-acl ‚Üí rule with Statement.ManagedRuleGroupStatement.Name=AWSManagedRulesCommonRuleSet,Yes/No,4,1,0
+,,M,WAF WebACL is associated with the API Gateway prod stage (not the ALB),,aws wafv2 list-resources-by-web-acl ‚Üí ResourceArn contains execute-api (API Gateway stage ARN),Yes/No,4,1,0
+,,M,No plaintext database credentials in task definition environment variables or ECR image,,Verify: task definition environment does not contain DB_PASSWORD or equivalent; reference to Secrets Manager secret snapshelf/rds/credentials only via secrets[] not environment[],Yes/No,4,1,0
+,,M,Private ECR repository named catalog-service exists with image tagged catalog-service:1.0.0,,aws ecr describe-repositories --repository-names catalog-service; aws ecr describe-images --repository-name catalog-service --image-ids imageTag=1.0.0,Yes/No,4,1,1
+,,J,WAF configuration correctness and association depth,3,0=no WAF WebACL; 1=WebACL exists but not associated with API Gateway; 2=associated with rate-based rule only; 3=associated with both rate-based rule and AWSManagedRulesCommonRuleSet and correct scope REGIONAL,,4,2,0
+D,Reliability,,,,,,9,,
+,,M,ECS Application Auto Scaling scalable target has minCapacity=2 and maxCapacity=15,,aws application-autoscaling describe-scalable-targets --service-namespace ecs ‚Üí MinCapacity=2 MaxCapacity=15,Yes/No,5,1,1
+,,M,Auto Scaling target tracking policy uses ALBRequestCountPerTarget metric with targetValue=200,,aws application-autoscaling describe-scaling-policies ‚Üí predefinedMetricType=ALBRequestCountPerTarget targetValue=200.0,Yes/No,5,1,1
+,,M,Auto Scaling scale-out cooldown is 30 seconds and scale-in cooldown is 300 seconds,,aws application-autoscaling describe-scaling-policies ‚Üí scaleOutCooldown=30 scaleInCooldown=300,Yes/No,5,1,1
+,,M,ALB target group titanflow-<state>-tg deregistration delay is exactly 30 seconds,,aws elbv2 describe-target-group-attributes ‚Üí deregistration_delay.timeout_seconds = 30,Yes/No,5,1,1
+,,M,DynamoDB GSI CategoryIndex exists with PK=category (S) SK=product_id (S) and Projection=ALL,,aws dynamodb describe-table ‚Üí GlobalSecondaryIndexes[name=CategoryIndex] KeySchema and Projection match specification,Yes/No,5,1,1
+,,M,DynamoDB GSI WarehouseIndex exists with PK=warehouse_zone (S) SK=last_updated (S) and Projection=ALL,,aws dynamodb describe-table ‚Üí GlobalSecondaryIndexes[name=WarehouseIndex] KeySchema and Projection match specification,Yes/No,5,1,1
+,,M,DynamoDB Streams enabled on titanflow-repo-table with StreamViewType=NEW_AND_OLD_IMAGES,,aws dynamodb describe-table ‚Üí StreamSpecification.StreamEnabled=true StreamViewType=NEW_AND_OLD_IMAGES,Yes/No,5,1,1
+,,M,EventBridge Pipe titanflow-<state>-pipe is RUNNING with DDB Stream source and INSERT-only filter,,aws pipes describe-pipe ‚Üí currentState=RUNNING source ARN contains titanflow-repo-table sourceParameters.filterCriteria.filters contains pattern matching eventName=INSERT,Yes/No,5,1,1
+,,M,DynamoDB Point-in-Time Recovery enabled on titanflow-repo-table,,aws dynamodb describe-continuous-backups --table-name titanflow-repo-table ‚Üí PointInTimeRecoveryDescription.PointInTimeRecoveryStatus = ENABLED,Yes/No,5,1,1
+E,Performance Efficiency,,,,,,7,,
+,,M,API Gateway prod stage caching enabled with cluster size 0.5 GB and default TTL 180 seconds,,aws apigateway get-stage --stage-name prod ‚Üí cacheClusterEnabled=true cacheClusterSize=0.5 methodSettings has *_/* with cacheTtlInSeconds=180,Yes/No,6,1,1
+,,M,Per-method cache override: GET /products/{id} cached and POST /products plus list-style query routes uncached,,aws apigateway get-stage --stage-name prod ‚Üí methodSettings: GET /{proxy+}/cachingEnabled=true; POST /{proxy+}/cachingEnabled=false,Yes/No,6,1,1
+,,M,ALB target group health check uses path /health with healthy threshold 2 and 15 second interval,,aws elbv2 describe-target-groups ‚Üí HealthCheckPath=/health HealthyThresholdCount=2 HealthCheckIntervalSeconds=15,Yes/No,6,1,1
+,,M,Container health check command validates the local /health endpoint via wget,,aws ecs describe-task-definition ‚Üí containerDefinitions[0].healthCheck.command contains wget and /health,Yes/No,6,1,1
+,,M,ECS service tasks are running in at least 2 distinct Availability Zones at competition close,,aws ecs list-tasks; aws ecs describe-tasks ‚Üí task availabilityZone values cover >= 2 AZs,Yes/No,6,1,1
+,,M,SQS queue titanflow-<state>-inventory-queue exists with VisibilityTimeout = 30,,aws sqs get-queue-attributes --queue-url <url> ‚Üí Attributes.VisibilityTimeout = 30,Yes/No,6,1,1
+,,J,Live engine score at competition close,3,"Score is blank or engine never received traffic;
+1=if position in leaderboard = 3
+2=if position in leaderboard = 2
+3=if position in leaderboard = 1",,6,2,0
+F,Sustainability,,,,,,3,,
+,,M,CloudWatch log group /ecs/catalog-service has retention policy set to 30 days or fewer,,aws logs describe-log-groups --log-group-name-prefix /ecs/catalog-service ‚Üí retentionInDays is set and <= 30,Yes/No,8,1,0
+,,M,CloudWatch log group titanflow-<state>-flowlogs has retention policy set to 30 days or fewer,,aws logs describe-log-groups --log-group-name-prefix titanflow-<state>-flowlogs ‚Üí retentionInDays is set and <= 30,Yes/No,8,1,0
+,,M,SQS DLQ titanflow-<state>-inventory-dlq exists and is the redrive target so failed messages do not stay invisible in the main queue,,aws sqs get-queue-attributes on inventory-queue ‚Üí Attributes.RedrivePolicy.deadLetterTargetArn ends with titanflow-<state>-inventory-dlq,Yes/No,8,1,0
+G,Work Organization and Management,,,,,,4,,
+,,M,All competitor-created resources follow the naming convention titanflow-<state>-<suffix>,,Spot-check each resource: cluster service alb tg apiGW waf inventory-queue inventory-dlq pipe vault plan logs alerts dashboard ‚Äî all names match titanflow-<state>-<suffix>,Yes/No,1,1,1
+,,M,CompetitorId=<state_code> tag is present on competitor-created resources,,aws resourcegroupstaggingapi get-resources --tag-filters Key=CompetitorId Value=<state> ‚Üí at least 5 distinct resource types returned,Yes/No,1,1,1
+,,M,SSM parameter /titanflow/api_endpoint contains a valid HTTPS API Gateway invoke URL ending with /prod,,aws ssm get-parameter --name /titanflow/api_endpoint ‚Üí Value matches https://<id>.execute-api.us-east-1.amazonaws.com/prod,Yes/No,1,1,1
+,,M,AWS Backup vault titanflow-<state>-vault and plan titanflow-<state>-backup both exist with titanflow-repo-table assigned as a protected resource,,aws backup list-backup-vaults; aws backup list-backup-plans; aws backup list-backup-selections ‚Üí table ARN present in resource assignment,Yes/No,1,1,0
+,,,,,,,,49,29
