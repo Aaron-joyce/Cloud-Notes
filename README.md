@@ -12,6 +12,27 @@ A comprehensive collection of notes, architecture guides, and troubleshooting st
 - **Infrastructure as Code (IaC)**: Foundations for automation and provisioning.
 - **Troubleshooting**: Methodologies for resolving service errors and configuration issues under pressure.
 
+## Security, Governance & Cryptography Index
+
+This section provides direct access to the documentation pages detailing various AWS security, monitoring, threat detection, and cryptography services.
+
+### Governance & Logging
+- **[AWS CloudTrail](./AWS/Governance/CloudTrail/CloudTrail.md)**: Tracks and logs AWS API calls for operational and risk auditing.
+- **[AWS Config](./AWS/Governance/Config/Config.md)**: Assesses, audits, and evaluates resource configurations against compliance rules.
+- **[VPC Flow Logs](./AWS/Networking/VPC/VPC-Flow-Logs.md)**: Captures network traffic IP metadata for VPC connectivity troubleshooting.
+
+### Monitoring & Threat Detection
+- **[Amazon GuardDuty](./AWS/Security%20and%20Access/Monitoring%20and%20Threat-Detection/GuardDuty/GuardDuty.md)**: Intelligent threat detection system that monitors logs for malicious or unauthorized activity.
+- **[AWS Security Hub](./AWS/Security%20and%20Access/Monitoring%20and%20Threat-Detection/SecurityHub/SecurityHub.md)**: Centralized dashboard for Cloud Security Posture Management (CSPM) and alert aggregation.
+- **[Amazon Macie](./AWS/Security%20and%20Access/Monitoring%20and%20Threat-Detection/Macie/Macie.md)**: Uses machine learning to discover and protect sensitive data (like PII) in Amazon S3.
+- **[Amazon Inspector](./AWS/Security%20and%20Access/Monitoring%20and%20Threat-Detection/Inspector/Inspector.md)**: Automated vulnerability scanner for EC2 instances, ECR container images, and Lambda functions.
+
+### Cryptography & Secrets Management
+- **[AWS Key Management Service (KMS)](./AWS/Security%20and%20Access/Cryptography-and-Secrets-Management/KMS/KMS.md)**: Manages cryptographic keys and controls encryption across AWS.
+- **[AWS Secrets Manager](./AWS/Security%20and%20Access/Cryptography-and-Secrets-Management/SecretsManager/SecretsManager.md)**: Securely stores, retrieves, and natively auto-rotates database credentials and API keys.
+- **[AWS Systems Manager Parameter Store](./AWS/Security%20and%20Access/Cryptography-and-Secrets-Management/ParameterStore/ParameterStore.md)**: Provides hierarchical storage for application configuration data and encrypted secrets.
+- **[AWS Certificate Manager (ACM)](./AWS/Security%20and%20Access/Cryptography-and-Secrets-Management/ACM/ACM.md)**: Automates the provisioning, deployment, and renewal of public/private SSL/TLS certificates.
+
 ## Troubleshooting Services
 Here is how to find and tailor solutions quickly under pressure:
 1. Use the "Troubleshooting" Direct-Link Pattern
